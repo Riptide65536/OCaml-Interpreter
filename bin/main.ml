@@ -1,4 +1,4 @@
-open Interpreter_project.Ast
+open Interpreter_lib.Ast
 
 (* Helper function to convert a list of items to a string *)
 let string_of_list ?(sep=", ") f l =
@@ -11,6 +11,7 @@ let string_of_typ = function
 let string_of_unop = function
   | Neg -> "-"
   | Not -> "!"
+  | Plus -> "+"
 
 let string_of_binop = function
   | Add -> "+" | Sub -> "-" | Mul -> "*" | Div -> "/" | Mod -> "%"
@@ -25,8 +26,8 @@ let rec string_of_expr = function
   | ECall (name, args) -> name ^ "(" ^ String.concat ", " (List.map string_of_expr args) ^ ")"
 
 let rec string_of_stmt indent = function
-  | SExpr None -> indent ^ ";"
-  | SExpr (Some e) -> indent ^ string_of_expr e ^ ";"
+  | SEmpty -> indent ^ ";"
+  | SExpr e -> indent ^ string_of_expr e ^ ";"
   | SReturn None -> indent ^ "return;"
   | SReturn (Some e) -> indent ^ "return " ^ string_of_expr e ^ ";"
   | SIf (cond, then_s, else_s_opt) ->
@@ -52,7 +53,7 @@ let string_of_param = function
 let string_of_func_def (f: func_def) =
   let return_type_str = string_of_typ f.return_type in
   let params_str = String.concat ", " (List.map string_of_param f.params) in
-  let body_str = String.concat "\n" (List.map (string_of_stmt "  ") f.body) in
+  let body_str = string_of_stmt "  " f.body in
   return_type_str ^ " " ^ f.name ^ "(" ^ params_str ^ ") {\n" ^
   body_str ^
   "\n}\n"
@@ -65,16 +66,16 @@ let parse_file (filename : string) : program =
   let lexbuf = Lexing.from_channel in_channel in
   Lexing.set_filename lexbuf filename;
   try
-    let ast = Parser.program Lexer.token lexbuf in
+    let ast = Interpreter_lib.Parser.comp_unit Interpreter_lib.Lexer.token lexbuf in
     close_in in_channel;
     ast
   with
-  | Parser.Error ->
+  | Parsing.Parse_error ->
     let pos = lexbuf.lex_curr_p in
     Printf.eprintf "Syntax error at %s:%d:%d\n"
       pos.pos_fname pos.pos_lnum (pos.pos_cnum - pos.pos_bol);
     exit 1
-  | Lexer.Error msg ->
+  | Failure msg ->
     let pos = lexbuf.lex_curr_p in
     Printf.eprintf "Lexical error at %s:%d:%d: %s\n"
         pos.pos_fname pos.pos_lnum (pos.pos_cnum - pos.pos_bol) msg;

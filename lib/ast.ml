@@ -2,7 +2,7 @@
 type typ = TInt | TVoid
 
 (* Unary operators *)
-type unop = Neg | Not
+type unop = Neg | Not | Plus
 
 (* Binary operators *)
 type binop =
@@ -20,9 +20,10 @@ and expr =
 
 (* Statements *)
 and stmt =
-  | SExpr of expr option                      (* Expression statement: expr; or ; *)
-  | SReturn of expr option                    (* return; or return expr; *)
-  | SIf of expr * stmt * stmt option          (* if (e) s1 [else s2] *)
+  | SEmpty                            (* Empty statement: ; *)
+  | SExpr of expr                     (* Expression statement: expr; *)
+  | SReturn of expr option            (* return; or return expr; *)
+  | SIf of expr * stmt * stmt option  (* if (e) s1 [else s2] *)
   | SWhile of expr * stmt                     (* while (e) s *)
   | SBlock of stmt list                       (* Block { s1; s2; ... } *)
   | SBreak                                    (* break; *)
@@ -39,7 +40,7 @@ type func_def = {
   return_type: typ;
   name: string;
   params: param list;
-  body: stmt list; (* Body is a list of statements *)
+  body: stmt; (* Body is a block statement *)
 }
 
 (* A program is a list of function definitions *)

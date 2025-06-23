@@ -1,0 +1,11 @@
+int main() {
+  int x = 10;
+  int y = 20;
+  int z = x + y;
+  
+  if (z > 25) {
+    return z;
+  } else {
+    return 0;
+  }
+} 
