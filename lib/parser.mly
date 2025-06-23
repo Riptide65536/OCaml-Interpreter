@@ -7,53 +7,106 @@
 %}
 
 %token <int> INT
-%token <string> ID              
-%token PLUS MINUS TIMES DIV EOF
-%token TRUE FALSE IF THEN ELSE LET IN EQ LEQ
-%token LPAREN RPAREN
-%token FUN ARROW  
-// (* 新增：FUN 和 ARROW token *)
+%token <string> ID
+%token EOF
+%token INT_KEYWORD VOID_KEYWORD
+%token IF ELSE WHILE BREAK CONTINUE RETURN
+%token LPAREN RPAREN LBRACE RBRACE SEMI COMMA
+%token ASSIGN
+%token PLUS MINUS TIMES DIV MOD
+%token EQ NEQ LT LE GT GE
+%token AND OR NOT
+
+%right ASSIGN
+%left OR
+%left AND
+%left EQ NEQ
+%left LT LE GT GE
 %left PLUS MINUS
-%left TIMES DIV
-%left LEQ
-%nonassoc IN
-%right ARROW                 
-//  (* -> 通常是右结合的，例如 fun x -> fun y -> e *)
-%nonassoc IF THEN ELSE LET EQ 
-// (* 将 let 和 if 放在较低的优先级 *)
+%left TIMES DIV MOD
+%right NOT
+%precedence ELSE
 
+%start <Ast.program> program
 
-
-
-%start main
-%type <Ast.expr> main
 %%
-main:
-    exp EOF { $1 }
-;
-exp:
-    | INT { Int $1 }
-    | ID { Var $1 }
-    | exp TIMES exp { Binop (Mul, $1, $3) }
-    | exp DIV exp  { Binop (Div, $1, $3) }
-    | exp PLUS exp  { Binop (Add, $1, $3) }
-    | exp MINUS exp { Binop (Sub, $1, $3) }
-    | exp LEQ exp { Binop (Leq, $1, $3) }
-    | TRUE { Bool true }
-    | FALSE { Bool false }
-    | IF exp THEN exp ELSE exp { If ($2, $4, $6) }
-    | LET ID EQ exp IN exp { Let ($2, $4, $6) }
-    | LPAREN exp RPAREN { $2 }
-//     (* --- 新增 Lambda 演算的语法规则 --- *)
-//   (* Lambda 抽象: fun x -> e *)
-//   (* 我们需要确保它的范围正确，通常它会扩展到尽可能右边，除非被括号或更高优先级的结构打断 *)
-//   (* 给予 ARROW 较低的优先级有助于实现 "fun x -> fun y -> ..." 的正确解析 *)
-  | FUN ID ARROW exp { Func ($2, $4) }
 
-//   (* 函数应用: e1 e2 *)
-//   (* 函数应用通常是左结合的，并且优先级很高 *)
-//   (* 将其放在所有二元操作符之后，但在原子表达式和括号之后，
-//      可以使其具有比二元操作符更高的优先级 *)
-  | exp exp { App ($1, $2) }
-//   (* --- 结束新增 --- *)
-;
+program:
+  | fun_def_list EOF { Program($1) }
+  ;
+
+fun_def_list:
+  | f = fun_def; l = fun_def_list { f :: l }
+  | f = fun_def { [f] }
+  ;
+
+fun_def:
+  | t = typ; n = ID; LPAREN; p = params_opt; RPAREN; LBRACE; b = stmt_list; RBRACE {
+      { return_type = t; name = n; params = p; body = b }
+    }
+  ;
+
+typ:
+  | INT_KEYWORD { TInt }
+  | VOID_KEYWORD { TVoid }
+  ;
+
+params_opt:
+  | /* empty */ { [] }
+  | p = params { p }
+  ;
+
+params:
+  | p = param { [p] }
+  | p = param; COMMA; ps = params { p :: ps }
+  ;
+
+param:
+  | INT_KEYWORD; n = ID { P(n) }
+  ;
+
+stmt_list:
+    | /* empty */ { [] }
+    | s = stmt; ss = stmt_list { s :: ss }
+    ;
+
+stmt:
+  | SEMI { SExpr(None) }
+  | e = expr; SEMI { SExpr(Some(e)) }
+  | RETURN; SEMI { SReturn(None) }
+  | RETURN; e = expr; SEMI { SReturn(Some(e)) }
+  | INT_KEYWORD; n = ID; ASSIGN; e = expr; SEMI { SDeclare(n, e) }
+  | n = ID; ASSIGN; e = expr; SEMI { SAssign(n, e) }
+  | IF; LPAREN; c = expr; RPAREN; t = stmt; e = else_opt { SIf(c, t, e) }
+  | WHILE; LPAREN; c = expr; RPAREN; b = stmt { SWhile(c, b) }
+  | BREAK; SEMI { SBreak }
+  | CONTINUE; SEMI { SContinue }
+  | LBRACE; s = stmt_list; RBRACE { SBlock(s) }
+  ;
+
+else_opt:
+    | /* empty */ { None }
+    | ELSE; s = stmt { Some(s) }
+    ;
+
+expr:
+  | i = INT { EInt(i) }
+  | id = ID { EVar(id) }
+  | id = ID; LPAREN; args = separated_list(COMMA, expr); RPAREN { ECall(id, args) }
+  | e1 = expr; op = binop; e2 = expr { EBinop(op, e1, e2) }
+  | op = unop; e = expr { EUnop(op, e) }
+  | LPAREN; e = expr; RPAREN { e }
+  ;
+
+binop:
+    | PLUS { Add } | SUB { Sub } | TIMES { Mul } | DIV { Div } | MOD { Mod }
+    | EQ { Eq } | NEQ { Neq } | LT { Lt } | LE { Le } | GT { Gt } | GE { Ge }
+    | AND { And } | OR { Or }
+    ;
+
+unop:
+    | MINUS { Neg }
+    | NOT { Not }
+    ;
+
+%%
