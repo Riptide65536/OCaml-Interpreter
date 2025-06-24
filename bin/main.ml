@@ -1,4 +1,5 @@
 open Interpreter_lib.Ast
+open Interpreter_lib.Codegen
 
 (* Helper function to convert a list of items to a string *)
 let string_of_list ?(sep=", ") f l =
@@ -81,6 +82,27 @@ let parse_file (filename : string) : program =
         pos.pos_fname pos.pos_lnum (pos.pos_cnum - pos.pos_bol) msg;
     exit 1
 
+let generate_output filename ast =
+  (* 生成AST字符串表示 *)
+  let ast_str = string_of_program ast in
+  
+  (* 生成RISC-V汇编代码 *)
+  let asm_code = generate_riscv ast in
+  
+  (* 创建.s文件名 *)
+  let output_filename = 
+    let base_name = Filename.basename filename in
+    let dir_name = Filename.dirname filename in
+    Filename.concat dir_name (Filename.remove_extension base_name ^ ".s")
+  in
+  
+  (* 将汇编代码写入.s文件 *)
+  let out_channel = open_out output_filename in
+  output_string out_channel asm_code;
+  close_out out_channel;
+  
+  (* 返回生成的文件名，用于打印信息 *)
+  output_filename
 
 let () =
   let filename =
@@ -90,5 +112,11 @@ let () =
       (Printf.eprintf "Usage: %s <file.tc>\n" Sys.argv.(0); exit 1)
   in
   let ast = parse_file filename in
-  let ast_str = string_of_program ast in
-  print_endline ast_str
+  
+  (* 输出AST信息 *)
+  if Array.length Sys.argv > 2 && Sys.argv.(2) = "-ast" then
+    print_endline (string_of_program ast)
+  else
+    (* 生成汇编代码并输出到.s文件 *)
+    let output_file = generate_output filename ast in
+    Printf.printf "Generated RISC-V assembly: %s\n" output_file
