@@ -1,7 +1,6 @@
 %{
 open Ast
 %}
-
 /* Tokens */
 %token <int> NUMBER
 %token <string> ID
@@ -13,7 +12,6 @@ open Ast
 %token PLUS MINUS TIMES DIV MOD
 %token EQ NEQ LT LE GT GE
 %token AND OR NOT
-
 /* Precedence and associativity */
 %right ASSIGN
 %left OR
@@ -36,7 +34,7 @@ comp_unit:
 
 nonempty_fun_def_list:
   fun_def { [$1] }
-| nonempty_fun_def_list fun_def { $2 :: $1 }
+| nonempty_fun_def_list fun_def {  $1@[$2] }
 
 fun_def:
   func_type ID LPAREN params_opt RPAREN block_stmt
