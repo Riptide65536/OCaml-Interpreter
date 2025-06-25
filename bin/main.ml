@@ -1,4 +1,5 @@
 open Interpreter_lib.Ast
+open Interpreter_lib.Optimizer
 open Interpreter_lib.Codegen
 
 (* Helper function to convert a list of items to a string *)
@@ -112,11 +113,13 @@ let () =
       (Printf.eprintf "Usage: %s <file.tc>\n" Sys.argv.(0); exit 1)
   in
   let ast = parse_file filename in
+  (* 进行优化 *)
+  let optimized_ast = optimize_program ast in
   
   (* 输出AST信息 *)
   if Array.length Sys.argv > 2 && Sys.argv.(2) = "-ast" then
-    print_endline (string_of_program ast)
+    print_endline (string_of_program optimized_ast)
   else
     (* 生成汇编代码并输出到.s文件 *)
-    let output_file = generate_output filename ast in
+    let output_file = generate_output filename optimized_ast in
     Printf.printf "Generated RISC-V assembly: %s\n" output_file

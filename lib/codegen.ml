@@ -409,10 +409,7 @@ let generate_riscv program =
     let env_with_params = process_params func_def.params param_regs func_env 0 in
     
     (* 编译函数体 *)
-    let _ = match func_def.body with
-      | SBlock stmts -> 
-          List.fold_left (fun env stmt -> compile_stmt env stmt) env_with_params stmts
-      | _ -> failwith "Function body must be a block"
+    let _ = compile_stmt env_with_params func_def.body
     in
     
     (* 添加函数返回标签 *)
