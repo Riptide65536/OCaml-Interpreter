@@ -105,7 +105,42 @@ let generate_output filename ast =
   (* 返回生成的文件名，用于打印信息 *)
   output_filename
 
+let parse_from_stdin () : program =
+  let lexbuf = Lexing.from_channel stdin in
+  try
+    let ast = Interpreter_lib.Parser.comp_unit Interpreter_lib.Lexer.token lexbuf in
+    ast
+  with
+  | Parsing.Parse_error ->
+    let pos = lexbuf.lex_curr_p in
+    Printf.eprintf "Syntax error at %s:%d:%d\n"
+      pos.pos_fname pos.pos_lnum (pos.pos_cnum - pos.pos_bol);
+    exit 1
+  | Failure msg ->
+    let pos = lexbuf.lex_curr_p in
+    Printf.eprintf "Lexical error at %s:%d:%d: %s\n"
+        pos.pos_fname pos.pos_lnum (pos.pos_cnum - pos.pos_bol) msg;
+    exit 1
+;;
+
+let output_to_stdout ast = 
+  (* 生成AST字符串表示 *)
+  let ast_str = string_of_program ast in
+  (* 生成RISC-V汇编代码 *)
+  let asm_code = generate_riscv ast in
+  output_string stdout asm_code;
+;;
+
+(* Parse and output code from and to stdio*)
 let () =
+  let ast = parse_from_stdin () in
+  (* 进行优化 *)
+  let optimized_ast = optimize_program ast in
+  output_to_stdout optimized_ast;
+;;
+
+(*
+let () = 
   let filename =
     if Array.length Sys.argv > 1 then
       Sys.argv.(1)
@@ -123,3 +158,4 @@ let () =
     (* 生成汇编代码并输出到.s文件 *)
     let output_file = generate_output filename optimized_ast in
     Printf.printf "Generated RISC-V assembly: %s\n" output_file
+*)
